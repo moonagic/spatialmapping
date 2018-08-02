@@ -43,7 +43,7 @@
 #include <cuda_gl_interop.h>
 
 // Define if you want to use the mesh as a set of chunks or as a global entity.
-#define USE_CHUNKS 1
+#define USE_CHUNKS 0
 
 // ZED object (camera, mesh, pose)
 sl::Camera zed;
@@ -122,7 +122,7 @@ int main(int argc, char** argv) {
 
 	// Configure Spatial Mapping and filtering parameters
 	spatial_mapping_params.range_meter = sl::SpatialMappingParameters::get(sl::SpatialMappingParameters::MAPPING_RANGE_FAR);
-	spatial_mapping_params.resolution_meter = .5f;// sl::SpatialMappingParameters::get(sl::SpatialMappingParameters::MAPPING_RESOLUTION_MEDIUM);
+	spatial_mapping_params.resolution_meter = sl::SpatialMappingParameters::get(sl::SpatialMappingParameters::MAPPING_RESOLUTION_LOW);
 	spatial_mapping_params.save_texture = true;
 	spatial_mapping_params.max_memory_usage = 512;
 	spatial_mapping_params.use_chunk_only = USE_CHUNKS; // If we use chunks we do not need to keep the mesh consistent
@@ -229,6 +229,17 @@ void stopMapping() {
 #else
 	mesh_object[0].updateMesh(wholeMesh.vertices, wholeMesh.triangles);
 #endif
+}
+
+void pauseMapping()
+{
+	zed.pauseSpatialMapping(true);
+}
+
+void resumeMapping()
+{
+	t_last = std::chrono::high_resolution_clock::now();
+	zed.pauseSpatialMapping(false);
 }
 
 /**
@@ -516,6 +527,13 @@ void keyPressedCallback(unsigned char c, int x, int y) {
 		break;
 	case 'q':
 		glutLeaveMainLoop(); // End the process	
+		break;
+
+	case 'p':
+		pauseMapping();
+		break;
+	case 'r':
+		resumeMapping();
 		break;
 	default:
 		break;

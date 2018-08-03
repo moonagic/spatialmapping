@@ -43,7 +43,7 @@
 #include <cuda_gl_interop.h>
 
 // Define if you want to use the mesh as a set of chunks or as a global entity.
-#define USE_CHUNKS 0
+#define USE_CHUNKS 1
 
 // ZED object (camera, mesh, pose)
 sl::Camera zed;
@@ -76,8 +76,8 @@ GLuint renderedTexture = 0; //Render Texture for FBO
 GLuint quad_vb;             //buffer for vertices/coords for image
 
 							// OpenGL Viewport size
-int wWnd = 1280;
-int hWnd = 720;
+int wWnd = 720;
+int hWnd = 1280;
 
 // Spatial Mapping status
 bool mapping_is_started = false;
@@ -101,7 +101,7 @@ int main(int argc, char** argv) {
 	sl::InitParameters parameters;
 	if (argc > 1) parameters.svo_input_filename = argv[1];
 
-	parameters.depth_mode = sl::DEPTH_MODE_PERFORMANCE; // Use QUALITY depth mode to improve mapping results
+	parameters.depth_mode = sl::DEPTH_MODE_QUALITY; // Use QUALITY depth mode to improve mapping results
 	parameters.coordinate_units = sl::UNIT_METER;
 	parameters.coordinate_system = sl::COORDINATE_SYSTEM_RIGHT_HANDED_Y_UP; // OpenGL coordinates system
 
@@ -113,8 +113,9 @@ int main(int argc, char** argv) {
 		return -1;
 	}
 
-	wWnd = (int)zed.getResolution().width;
 	hWnd = (int)zed.getResolution().height;
+	wWnd = (int)zed.getResolution().width;
+
 
 	// Create GLUT window
 	glutInitWindowSize(wWnd, hWnd);
@@ -122,12 +123,12 @@ int main(int argc, char** argv) {
 
 	// Configure Spatial Mapping and filtering parameters
 	spatial_mapping_params.range_meter = sl::SpatialMappingParameters::get(sl::SpatialMappingParameters::MAPPING_RANGE_FAR);
-	spatial_mapping_params.resolution_meter = sl::SpatialMappingParameters::get(sl::SpatialMappingParameters::MAPPING_RESOLUTION_LOW);
+	spatial_mapping_params.resolution_meter = 0.06f;// sl::SpatialMappingParameters::get(sl::SpatialMappingParameters::MAPPING_RESOLUTION_MEDIUM);
 	spatial_mapping_params.save_texture = true;
-	spatial_mapping_params.max_memory_usage = 512;
+	spatial_mapping_params.max_memory_usage = 4096;
 	spatial_mapping_params.use_chunk_only = USE_CHUNKS; // If we use chunks we do not need to keep the mesh consistent
 	
-	filter_params.set(sl::MeshFilterParameters::MESH_FILTER_HIGH);
+	filter_params.set(sl::MeshFilterParameters::MESH_FILTER_MEDIUM);
 
 	// Initialize OpenGL
 	int res = initGL();
@@ -246,9 +247,9 @@ void resumeMapping()
 Update the mesh and draw image and wireframe using OpenGL
 **/
 void run() {
-// 	sl::RuntimeParameters rt_parameters = sl::RuntimeParameters();
-// 	rt_parameters.sensing_mode = sl::SENSING_MODE_FILL;
-	if (zed.grab(/*rt_parameters*/) == sl::SUCCESS) {
+	sl::RuntimeParameters rt_parameters = sl::RuntimeParameters();
+	rt_parameters.sensing_mode = sl::SENSING_MODE_FILL;
+	if (zed.grab(rt_parameters) == sl::SUCCESS) {
 		// Retrieve image in GPU memory
 		zed.retrieveImage(left_image, sl::VIEW_LEFT, sl::MEM_GPU);
 

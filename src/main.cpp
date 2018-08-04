@@ -61,15 +61,15 @@ sl::Mat point_cloud;
 cudaGraphicsResource* cuda_gl_ressource;//cuda GL resource           
 
 										// OpenGL mesh container
-std::vector<MeshObject> mesh_object;    // Opengl mesh container
+//std::vector<MeshObject> mesh_object;    // Opengl mesh container
 sl::float3 vertices_color;              // Defines the color of the mesh
 
 										// OpenGL camera projection matrix
 sl::Transform camera_projection;
 
 // Opengl object
-Shader* shader_mesh = NULL; //GLSL Shader for mesh
-Shader* shader_image = NULL;//GLSL Shader for image
+// Shader* shader_mesh = NULL; //GLSL Shader for mesh
+// Shader* shader_image = NULL;//GLSL Shader for image
 GLuint imageTex;            //OpenGL texture mapped with a cuda array (opengl gpu interop)
 GLuint shMVPMatrixLoc;      //Shader variable loc
 GLuint shColorLoc;          //Shader variable loc
@@ -79,8 +79,6 @@ GLuint renderedTexture = 0; //Render Texture for FBO
 GLuint quad_vb;             //buffer for vertices/coords for image
 
 							// OpenGL Viewport size
-int wWnd = 720;
-int hWnd = 1280;
 
 // Spatial Mapping status
 bool mapping_is_started = false;
@@ -92,8 +90,6 @@ void run();
 void startMapping();
 void stopMapping();
 void keyPressedCallback(unsigned char c, int x, int y);
-// int initGL();
-// void drawGL();
 
 int main(int argc, char** argv) {
 	// Init GLUT window
@@ -115,14 +111,6 @@ int main(int argc, char** argv) {
 		zed.close();
 		return -1;
 	}
-
-	hWnd = (int)zed.getResolution().height;
-	wWnd = (int)zed.getResolution().width;
-
-
-	// Create GLUT window
-// 	glutInitWindowSize(wWnd, hWnd);
-// 	glutCreateWindow("ZED Spatial Mapping");
 
 	// Configure Spatial Mapping and filtering parameters
 	spatial_mapping_params.range_meter = sl::SpatialMappingParameters::get(sl::SpatialMappingParameters::MAPPING_RANGE_FAR);
@@ -183,10 +171,10 @@ This function close the sample (when a close event is generated)
 void close() {
 	left_image.free();
 
-	if (shader_mesh) delete shader_mesh;
-	if (shader_image) delete shader_image;
+// 	if (shader_mesh) delete shader_mesh;
+// 	if (shader_image) delete shader_image;
 
-	mesh_object.clear();
+	//mesh_object.clear();
 	zed.close();
 }
 
@@ -196,7 +184,7 @@ Start the spatial mapping process
 void startMapping() {
 	// clear previously used objects
 	mesh.clear();
-	mesh_object.clear();
+	//mesh_object.clear();
 
 #if !USE_CHUNKS
 	// Create only one object that will contain the full mesh.
@@ -318,13 +306,13 @@ void run() {
 #if USE_CHUNKS
 					for (int c = 0; c < mesh.chunks.size(); c++) {
 						// If the chunk does not exist in the rendering process -> add it in the rendering list
-						if (mesh_object.size() < mesh.chunks.size()) mesh_object.emplace_back();
+						//if (mesh_object.size() < mesh.chunks.size()) mesh_object.emplace_back();
 						// If the chunck has been updated by the spatial mapping, update it for rendering
-						if (mesh.chunks[c].has_been_updated)
-							mesh_object[c].updateMesh(mesh.chunks[c].vertices, mesh.chunks[c].triangles);
+// 						if (mesh.chunks[c].has_been_updated)
+// 							mesh_object[c].updateMesh(mesh.chunks[c].vertices, mesh.chunks[c].triangles);
 					}
 #else
-					mesh_object[0].updateMesh(mesh.vertices, mesh.triangles);
+					//mesh_object[0].updateMesh(mesh.vertices, mesh.triangles);
 #endif
 				}
 			}
@@ -340,218 +328,6 @@ void run() {
 // 
 // 	// Prepare next update
 // 	glutPostRedisplay();
-}
-
-/**
-Initialize OpenGL window and objects
-**/
-int initGL() {
-
-	// Init glew after window has been created
-	glewInit();
-	glClearColor(0.0, 0.0, 0.0, 0.0);
-
-	// Create and Register OpenGL Texture for Image (RGBA -- 4channels)
-	glEnable(GL_TEXTURE_2D);
-	glGenTextures(1, &imageTex);
-	glBindTexture(GL_TEXTURE_2D, imageTex);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, wWnd, hWnd, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, NULL);
-	glBindTexture(GL_TEXTURE_2D, 0);
-	cudaError_t err1 = cudaGraphicsGLRegisterImage(&cuda_gl_ressource, imageTex, GL_TEXTURE_2D, cudaGraphicsRegisterFlagsWriteDiscard);
-	if (err1 != cudaError::cudaSuccess) return -1;
-
-	// Create GLSL Shaders for Mesh and Image
-	shader_mesh = new Shader((GLchar*)MESH_VERTEX_SHADER, (GLchar*)MESH_FRAGMENT_SHADER);
-	shMVPMatrixLoc = glGetUniformLocation(shader_mesh->getProgramId(), "u_mvpMatrix");
-	shColorLoc = glGetUniformLocation(shader_mesh->getProgramId(), "u_color");
-	shader_image = new Shader((GLchar*)IMAGE_VERTEX_SHADER, (GLchar*)IMAGE_FRAGMENT_SHADER);
-	texID = glGetUniformLocation(shader_image->getProgramId(), "texImage");
-
-	// Create Frame Buffer for offline rendering
-	// Here we render the composition of the image and the projection of the mesh on top of it in a texture (using FBO - Frame Buffer Object)
-	glGenFramebuffers(1, &fbo);
-	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-
-	// Generate a render texture (which will contain the image and mesh in wireframe overlay)
-	glGenTextures(1, &renderedTexture);
-	glBindTexture(GL_TEXTURE_2D, renderedTexture);
-
-	// Give an empty image to OpenGL ( the last "0" as pointer )
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, wWnd, hWnd, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
-	// Set "renderedTexture" as our color attachment #0
-	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, renderedTexture, 0);
-
-	// Set the list of draw buffers.
-	GLenum DrawBuffers[1] = { GL_COLOR_ATTACHMENT0 };
-	glDrawBuffers(1, DrawBuffers);
-
-	// Always check that our framebuffer is ok
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-		std::cout << "invalid FrameBuffer" << std::endl;
-		return -1;
-	}
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	// Create Projection Matrix for OpenGL. We will use this matrix in combination with the Pose (on REFERENCE_FRAME_WORLD) to project the mesh on the 2D Image.
-	sl::CameraParameters camLeft = zed.getCameraInformation().calibration_parameters.left_cam;
-	camera_projection(0, 0) = 1.0f / tanf(camLeft.h_fov * M_PI / 180.f * 0.5f);
-	camera_projection(1, 1) = 1.0f / tanf(camLeft.v_fov * M_PI / 180.f * 0.5f);
-	float znear = 0.001f;
-	float zfar = 100.f;
-	camera_projection(2, 2) = -(zfar + znear) / (zfar - znear);
-	camera_projection(2, 3) = -(2.f * zfar * znear) / (zfar - znear);
-	camera_projection(3, 2) = -1.f;
-	camera_projection(0, 2) = (camLeft.image_size.width - 2.f * camLeft.cx) / camLeft.image_size.width;
-	camera_projection(1, 2) = (-1.f * camLeft.image_size.height + 2.f * camLeft.cy) / camLeft.image_size.height;
-	camera_projection(3, 3) = 0.f;
-
-	// Generate the Quad for showing the image in a full viewport
-	static const GLfloat g_quad_vertex_buffer_data[] = {
-		-1.0f, -1.0f, 0.0f,
-		1.0f, -1.0f, 0.0f,
-		-1.0f, 1.0f, 0.0f,
-		-1.0f, 1.0f, 0.0f,
-		1.0f, -1.0f, 0.0f,
-		1.0f, 1.0f, 0.0f };
-
-	// Color of wireframe (soft blue)
-	vertices_color.r = 0.35f;
-	vertices_color.g = 0.65f;
-	vertices_color.b = 0.95f;
-
-	// Generate a buffer to handle vertices for the GLSL shader
-	glGenBuffers(1, &quad_vb);
-	glBindBuffer(GL_ARRAY_BUFFER, quad_vb);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, GL_STATIC_DRAW);
-
-	//glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_CONTINUE_EXECUTION);
-
-	return 0;
-}
-
-/**
-This function draws a text with OpenGL
-**/
-void printGL(float x, float y, const char *string) {
-	glRasterPos2f(x, y);
-	int len = (int)strlen(string);
-	for (int i = 0; i < len; i++) {
-		//glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, string[i]);
-	}
-}
-
-/**
-OpenGL draw function
-Render Image and wireframe mesh into a texture using the FrameBuffer
-**/
-void drawGL() {
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glEnable(GL_TEXTURE_2D);
-	glActiveTexture(GL_TEXTURE0);
-
-	glViewport(0, 0, wWnd, hWnd);
-
-	// Render image and wireframe mesh into a texture using frame buffer
-	// Bind the frame buffer and specify the viewport (full screen)
-	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-
-	// Render the ZED view (Left) in the framebuffer
-	glUseProgram(shader_image->getProgramId());
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, imageTex);
-	glUniform1i(texID, 0);
-	//invert y axis and color for this image (since its reverted from cuda array)
-	glUniform1i(glGetUniformLocation(shader_image->getProgramId(), "revert"), 1);
-	glUniform1i(glGetUniformLocation(shader_image->getProgramId(), "rgbflip"), 1);
-
-	glEnableVertexAttribArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, quad_vb);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-	glDrawArrays(GL_TRIANGLES, 0, 6);
-	glDisableVertexAttribArray(0);
-	glUseProgram(0);
-
-	// If the Positional tracking is good, we can draw the mesh over the current image
-	if (tracking_state == sl::TRACKING_STATE_OK && mesh_object.size()) {
-		glDisable(GL_TEXTURE_2D);
-		// Send the projection and the Pose to the GLSL shader to make the projection of the 2D image.
-		sl::Transform vpMatrix = sl::Transform::transpose(camera_projection * sl::Transform::inverse(pose.pose_data));
-		glUseProgram(shader_mesh->getProgramId());
-		glUniformMatrix4fv(shMVPMatrixLoc, 1, GL_FALSE, vpMatrix.m);
-
-		glUniform3fv(shColorLoc, 1, vertices_color.v);
-		// Draw the mesh in GL_TRIANGLES with a polygon mode in line (wire)
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
-#if USE_CHUNKS
-		for (int c = 0; c < mesh_object.size(); c++)
-			mesh_object[c].draw(GL_TRIANGLES);
-#else
-		mesh_object[0].draw(GL_TRIANGLES);
-#endif
-
-		glUseProgram(0);
-	}
-
-	// Unbind the framebuffer since the texture is now updated
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	// Render the texture to the screen
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-	glUseProgram(shader_image->getProgramId());
-	glBindTexture(GL_TEXTURE_2D, renderedTexture);
-	glUniform1i(texID, 0);
-	glUniform1i(glGetUniformLocation(shader_image->getProgramId(), "revert"), 0);
-	glUniform1i(glGetUniformLocation(shader_image->getProgramId(), "rgbflip"), 0);
-	glEnableVertexAttribArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, quad_vb);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-	glDrawArrays(GL_TRIANGLES, 0, 6);
-	glDisableVertexAttribArray(0);
-	glUseProgram(0);
-	glDisable(GL_TEXTURE_2D);
-
-	// Show actions
-	glColor4f(0.25f, 0.99f, 0.25f, 1.f);
-	if (!mapping_is_started)
-		printGL(-0.99f, 0.9f, "Press Space Bar to activate Spatial Mapping.");
-	else
-		printGL(-0.99f, 0.9f, "Press Space Bar to stop spatial mapping.");
-
-	std::string positional_tracking_state_str("POSITIONAL TRACKING STATE : ");
-	std::string spatial_mapping_state_str("SPATIAL MAPPING STATE : ");
-	std::string state_str;
-	// Show mapping state
-	if ((tracking_state == sl::TRACKING_STATE_OK)) {
-		sl::SPATIAL_MAPPING_STATE spatial_mapping_state = zed.getSpatialMappingState();
-		if (spatial_mapping_state == sl::SPATIAL_MAPPING_STATE_OK || spatial_mapping_state == sl::SPATIAL_MAPPING_STATE_INITIALIZING)
-			glColor4f(0.25f, 0.99f, 0.25f, 1.f);
-		else if (spatial_mapping_state == sl::SPATIAL_MAPPING_STATE_NOT_ENABLED)
-			glColor4f(0.55f, 0.65f, 0.55f, 1.f);
-		else
-			glColor4f(0.95f, 0.25f, 0.25f, 1.f);
-		state_str = spatial_mapping_state_str + sl::toString(spatial_mapping_state).c_str();
-	}
-	else {
-		if (mapping_is_started) {
-			glColor4f(0.95f, 0.25f, 0.25f, 1.f);
-			state_str = positional_tracking_state_str + sl::toString(tracking_state).c_str();
-		}
-		else {
-			glColor4f(0.55f, 0.65f, 0.55f, 1.f);
-			state_str = spatial_mapping_state_str + sl::toString(sl::SPATIAL_MAPPING_STATE_NOT_ENABLED).c_str();
-		}
-	}
-	printGL(-0.99f, 0.83f, state_str.c_str());
-
-	// Swap buffers
-	//glutSwapBuffers();
 }
 
 /**

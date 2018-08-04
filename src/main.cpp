@@ -32,7 +32,7 @@
 
 // OpenGL includes
 #include <GL/glew.h>
-#include <GL/freeglut.h>
+//#include <GL/freeglut.h>
 
 // ZED includes
 #include <sl/Camera.hpp>
@@ -97,8 +97,8 @@ void keyPressedCallback(unsigned char c, int x, int y);
 
 int main(int argc, char** argv) {
 	// Init GLUT window
-	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
+// 	glutInit(&argc, argv);
+// 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
 
 	// Setup configuration parameters for the ZED    
 	sl::InitParameters parameters;
@@ -335,11 +335,11 @@ void run() {
 	}
 
 	// If SVO input is enabled, close the window and stop mapping if video reached the end
-	if (zed.getSVOPosition() > 0 && zed.getSVOPosition() == zed.getSVONumberOfFrames() - 1)
-		glutLeaveMainLoop();
-
-	// Prepare next update
-	glutPostRedisplay();
+// 	if (zed.getSVOPosition() > 0 && zed.getSVOPosition() == zed.getSVONumberOfFrames() - 1)
+// 		glutLeaveMainLoop();
+// 
+// 	// Prepare next update
+// 	glutPostRedisplay();
 }
 
 /**
@@ -430,7 +430,7 @@ int initGL() {
 	glBindBuffer(GL_ARRAY_BUFFER, quad_vb);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, GL_STATIC_DRAW);
 
-	glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_CONTINUE_EXECUTION);
+	//glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_CONTINUE_EXECUTION);
 
 	return 0;
 }
@@ -442,7 +442,7 @@ void printGL(float x, float y, const char *string) {
 	glRasterPos2f(x, y);
 	int len = (int)strlen(string);
 	for (int i = 0; i < len; i++) {
-		glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, string[i]);
+		//glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, string[i]);
 	}
 }
 
@@ -551,7 +551,7 @@ void drawGL() {
 	printGL(-0.99f, 0.83f, state_str.c_str());
 
 	// Swap buffers
-	glutSwapBuffers();
+	//glutSwapBuffers();
 }
 
 /**
@@ -566,7 +566,7 @@ void keyPressedCallback(unsigned char c, int x, int y) {
 			stopMapping();
 		break;
 	case 'q':
-		glutLeaveMainLoop(); // End the process	
+		//glutLeaveMainLoop(); // End the process	
 		break;
 
 	case 'p':

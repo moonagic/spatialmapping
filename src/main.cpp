@@ -42,6 +42,8 @@
 #include "utils.hpp"
 #include <cuda_gl_interop.h>
 
+//#include <opencv.hpp>
+
 // Define if you want to use the mesh as a set of chunks or as a global entity.
 #define USE_CHUNKS 1
 
@@ -53,6 +55,7 @@ sl::Mesh mesh;      // sl::Mesh to hold the mesh generated during spatial mappin
 sl::SpatialMappingParameters spatial_mapping_params;
 sl::MeshFilterParameters filter_params;
 sl::TRACKING_STATE tracking_state;
+sl::Mat point_cloud;
 
 // For CUDA-OpenGL interoperability
 cudaGraphicsResource* cuda_gl_ressource;//cuda GL resource           
@@ -89,8 +92,8 @@ void run();
 void startMapping();
 void stopMapping();
 void keyPressedCallback(unsigned char c, int x, int y);
-int initGL();
-void drawGL();
+// int initGL();
+// void drawGL();
 
 int main(int argc, char** argv) {
 	// Init GLUT window
@@ -118,12 +121,12 @@ int main(int argc, char** argv) {
 
 
 	// Create GLUT window
-	glutInitWindowSize(wWnd, hWnd);
-	glutCreateWindow("ZED Spatial Mapping");
+// 	glutInitWindowSize(wWnd, hWnd);
+// 	glutCreateWindow("ZED Spatial Mapping");
 
 	// Configure Spatial Mapping and filtering parameters
 	spatial_mapping_params.range_meter = sl::SpatialMappingParameters::get(sl::SpatialMappingParameters::MAPPING_RANGE_FAR);
-	spatial_mapping_params.resolution_meter = 0.06f;// sl::SpatialMappingParameters::get(sl::SpatialMappingParameters::MAPPING_RESOLUTION_MEDIUM);
+	spatial_mapping_params.resolution_meter = 1;// sl::SpatialMappingParameters::get(sl::SpatialMappingParameters::MAPPING_RESOLUTION_MEDIUM);
 	spatial_mapping_params.save_texture = true;
 	spatial_mapping_params.max_memory_usage = 4096;
 	spatial_mapping_params.use_chunk_only = USE_CHUNKS; // If we use chunks we do not need to keep the mesh consistent
@@ -131,24 +134,45 @@ int main(int argc, char** argv) {
 	filter_params.set(sl::MeshFilterParameters::MESH_FILTER_MEDIUM);
 
 	// Initialize OpenGL
-	int res = initGL();
-	if (res != 0) {
-		std::cout << "Failed to initialize OpenGL" << std::endl;
-		zed.close();
-		return -1;
-	}
+// 	int res = initGL();
+// 	if (res != 0) {
+// 		std::cout << "Failed to initialize OpenGL" << std::endl;
+// 		zed.close();
+// 		return -1;
+// 	}
 
 	std::cout << "*************************************************************" << std::endl;
 	std::cout << "**      Press the Space Bar key to start and stop          **" << std::endl;
 	std::cout << "*************************************************************" << std::endl;
 
 	// Set glut callback before start
-	glutKeyboardFunc(keyPressedCallback);// Callback that starts spatial mapping when space bar is pressed
-	glutDisplayFunc(run); // Callback that updates mesh data
-	glutCloseFunc(close);// Close callback
+// 	glutKeyboardFunc(keyPressedCallback);// Callback that starts spatial mapping when space bar is pressed
+// 	glutDisplayFunc(run); // Callback that updates mesh data
+// 	glutCloseFunc(close);// Close callback
+// 
+// 						 // Start the glut main loop thread
+// 	glutMainLoop();
+	sl::RuntimeParameters rt_parameters = sl::RuntimeParameters();
+	rt_parameters.sensing_mode = sl::SENSING_MODE_FILL;
+	rt_parameters.enable_point_cloud = true;
+	if (zed.grab(rt_parameters) == sl::SUCCESS) {
 
-						 // Start the glut main loop thread
-	glutMainLoop();
+		zed.retrieveMeasure(point_cloud, sl::MEASURE_XYZRGBA);
+		std::string filename = getDir() + "pc.ply";
+		// 	sl::ERROR_CODE ec = point_cloud.write(filename.c_str());
+		// 	std::cout << ">> Point cloud has been saved under pc.ply with error code:" << ec << std::endl;
+
+		if (sl::savePointCloudAs(point_cloud, sl::POINT_CLOUD_FORMAT_PLY_ASCII, filename.c_str(), true))
+		{
+			std::cout << ">> Point cloud has been saved" << std::endl;
+		}
+		else
+		{
+			std::cout << ">> Point cloud has been not saved" << std::endl;
+		}
+
+	}
+
 
 	return 0;
 }
@@ -200,36 +224,50 @@ void stopMapping() {
 	mapping_is_started = false;
 	std::cout << "** Stop Spatial Mapping ... **" << std::endl;
 
-	// Extract the whole mesh
-	sl::Mesh wholeMesh;
-	zed.extractWholeMesh(wholeMesh);
-	std::cout << ">> Mesh has been extracted..." << std::endl;
-
-	// Filter the extracted mesh
-	wholeMesh.filter(filter_params, USE_CHUNKS);
-	std::cout << ">> Mesh has been filtered..." << std::endl;
-
-	// If textures have been saved during spatial mapping, apply them to the mesh
-	if (spatial_mapping_params.save_texture) {
-		wholeMesh.applyTexture(sl::MESH_TEXTURE_RGB);
-		std::cout << ">> Mesh has been textured..." << std::endl;
-	}
-
-	//Save as an OBJ file
-	std::string saveName = getDir() + "mesh_gen.obj";
-	bool t = wholeMesh.save(saveName.c_str());
-	if (t) std::cout << ">> Mesh has been saved under " << saveName << std::endl;
-	else std::cout << ">> Failed to save the mesh under  " << saveName << std::endl;
+// 	// Extract the whole mesh
+// 	sl::Mesh wholeMesh;
+// 	zed.extractWholeMesh(wholeMesh);
+// 	std::cout << ">> Mesh has been extracted..." << std::endl;
+// 
+// 	// Filter the extracted mesh
+// 	wholeMesh.filter(filter_params, USE_CHUNKS);
+// 	std::cout << ">> Mesh has been filtered..." << std::endl;
+// 
+// 	// If textures have been saved during spatial mapping, apply them to the mesh
+// 	if (spatial_mapping_params.save_texture) {
+// 		wholeMesh.applyTexture(sl::MESH_TEXTURE_RGB);
+// 		std::cout << ">> Mesh has been textured..." << std::endl;
+// 	}
+// 
+// 	//Save as an OBJ file
+// 	std::string saveName = getDir() + "mesh_gen.obj";
+// 	bool t = wholeMesh.save(saveName.c_str());
+// 	if (t) std::cout << ">> Mesh has been saved under " << saveName << std::endl;
+// 	else std::cout << ">> Failed to save the mesh under  " << saveName << std::endl;
 
 	// Update the displayed Mesh
-#if USE_CHUNKS
-	mesh_object.clear();
-	mesh_object.resize(wholeMesh.chunks.size());
-	for (int c = 0; c < wholeMesh.chunks.size(); c++)
-		mesh_object[c].updateMesh(wholeMesh.chunks[c].vertices, wholeMesh.chunks[c].triangles);
-#else
-	mesh_object[0].updateMesh(wholeMesh.vertices, wholeMesh.triangles);
-#endif
+// #if USE_CHUNKS
+// 	mesh_object.clear();
+// 	mesh_object.resize(wholeMesh.chunks.size());
+// 	for (int c = 0; c < wholeMesh.chunks.size(); c++)
+// 		mesh_object[c].updateMesh(wholeMesh.chunks[c].vertices, wholeMesh.chunks[c].triangles);
+// #else
+// 	mesh_object[0].updateMesh(wholeMesh.vertices, wholeMesh.triangles);
+// #endif
+
+	zed.retrieveMeasure(point_cloud, sl::MEASURE_XYZRGBA);
+	std::string filename = getDir() + "pc.ply";
+// 	sl::ERROR_CODE ec = point_cloud.write(filename.c_str());
+// 	std::cout << ">> Point cloud has been saved under pc.ply with error code:" << ec << std::endl;
+
+	if (sl::savePointCloudAs(point_cloud, sl::POINT_CLOUD_FORMAT_PLY_ASCII, filename.c_str(), true))
+	{
+		std::cout << ">> Point cloud has been saved" << std::endl;
+	}
+	else
+	{
+		std::cout << ">> Point cloud has been not saved" << std::endl;
+	}
 }
 
 void pauseMapping()
@@ -249,6 +287,7 @@ Update the mesh and draw image and wireframe using OpenGL
 void run() {
 	sl::RuntimeParameters rt_parameters = sl::RuntimeParameters();
 	rt_parameters.sensing_mode = sl::SENSING_MODE_FILL;
+	rt_parameters.enable_point_cloud = true;
 	if (zed.grab(rt_parameters) == sl::SUCCESS) {
 		// Retrieve image in GPU memory
 		zed.retrieveImage(left_image, sl::VIEW_LEFT, sl::MEM_GPU);
@@ -292,7 +331,7 @@ void run() {
 		}
 
 		// Display image and mesh using OpenGL 
-		drawGL();
+		//drawGL();
 	}
 
 	// If SVO input is enabled, close the window and stop mapping if video reached the end
